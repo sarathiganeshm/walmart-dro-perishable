@@ -34,79 +34,111 @@ def _apply_rc():
 
 def plot_methodology_flowchart(save_path=None):
     """
-    fig1: Pure schematic flowchart — 6 stages with FancyBboxPatch nodes,
-    numbered circles, and FancyArrowPatch connections.
-    Stages: Input Data -> MC Scenarios -> Wasserstein -> CVaR -> LP Model -> Outputs
+    fig1: INFORMS-style 4-stage top row -> central LP box (double border) ->
+    3-output bottom row.  LaTeX mathtext equations throughout.
     """
     _apply_rc()
-    fig, ax = plt.subplots(figsize=(10, 3.5))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 4)
+
+    def _box(ax, x, y, w, h, text, fontsize=8.5, bold=False, double=False):
+        rect = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.05",
+                              facecolor="white", edgecolor="black", linewidth=1.2)
+        ax.add_patch(rect)
+        if double:
+            rect2 = FancyBboxPatch((x + 0.08, y + 0.08), w - 0.16, h - 0.16,
+                                   boxstyle="round,pad=0.02", facecolor="none",
+                                   edgecolor="black", linewidth=0.6)
+            ax.add_patch(rect2)
+        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center",
+                fontsize=fontsize, fontweight="bold" if bold else "normal",
+                linespacing=1.5)
+
+    def _arrow(ax, x1, y1, x2, y2):
+        a = FancyArrowPatch((x1, y1), (x2, y2), arrowstyle="->",
+                            mutation_scale=14, color="black", linewidth=1.0)
+        ax.add_patch(a)
+
+    fig, ax = plt.subplots(figsize=(11, 6.5))
+    ax.set_xlim(0, 12)
+    ax.set_ylim(0, 8)
     ax.axis("off")
 
-    stages = [
-        (0.5, "1", "Input Data\n(M5 Walmart\nFOODS_3/CA_1)"),
-        (2.0, "2", "Monte Carlo\nScenarios\n(N=500, Bootstrap)"),
-        (3.5, "3", "Wasserstein\nRadius\n(ε calibration)"),
-        (5.0, "4", "CVaR\nLinearisation\n(α=0.95)"),
-        (6.5, "5", "DRO-CVaR\nLP (PuLP+CBC)"),
-        (8.0, "6", "Outputs\n(Q*, Cost,\nService Level)"),
+    # ── Two title lines ───────────────────────────────────────────────────
+    ax.text(6, 7.6,
+            "Methodology: Data-Driven Wasserstein DRO-CVaR Framework",
+            ha="center", va="center", fontsize=11, fontweight="bold")
+    ax.text(6, 7.25,
+            "Applied to Walmart FOODS_3 Perishable Inventory (M5 Dataset)",
+            ha="center", va="center", fontsize=9, style="italic",
+            color="dimgrey")
+
+    # ── TOP ROW: 4 stage boxes at y=5.3, h=1.2 ───────────────────────────
+    top_stages = [
+        (0.3,  2.4,
+         "INPUT DATA\n\nM5 Walmart FOODS_3\n42 weeks training\n10 weeks holdout"),
+        (3.5,  2.6,
+         "MONTE CARLO\nSCENARIO GENERATION\n\nN=500 bootstrap\n"
+         "from empirical $P_N$"),
+        (6.9,  2.6,
+         "WASSERSTEIN\nAMBIGUITY SET\n\n$B_\\varepsilon(P_N)$\n"
+         "$\\varepsilon=\\sigma\\sqrt{\\log N / N}$"),
+        (10.3, 1.6,
+         "CVaR$_{0.95}$\n\nRockafellar-\nUryasev (2000)"),
     ]
+    box_y, box_h = 5.3, 1.2
+    for x, w, txt in top_stages:
+        _box(ax, x, box_y, w, box_h, txt, fontsize=8)
 
-    box_w, box_h = 1.1, 1.6
-    cy = 2.0
+    # Filled black stage-number circles above each box
+    for idx, (x, w, _) in enumerate(top_stages):
+        cx = x + w / 2
+        circ = plt.Circle((cx, 6.7), 0.22, color="black", zorder=5)
+        ax.add_patch(circ)
+        ax.text(cx, 6.7, str(idx + 1), ha="center", va="center",
+                fontsize=8, color="white", fontweight="bold", zorder=6)
 
-    for (cx, num, label) in stages:
-        # Box
-        fancy = FancyBboxPatch(
-            (cx - box_w / 2, cy - box_h / 2),
-            box_w, box_h,
-            boxstyle="round,pad=0.08",
-            linewidth=1.0,
-            edgecolor="black",
-            facecolor="white",
-        )
-        ax.add_patch(fancy)
-        # Number circle
-        circle = plt.Circle((cx - box_w / 2 + 0.18, cy + box_h / 2 - 0.18),
-                             0.16, color="black", zorder=5)
-        ax.add_patch(circle)
-        ax.text(cx - box_w / 2 + 0.18, cy + box_h / 2 - 0.18, num,
-                ha="center", va="center", fontsize=7, color="white",
-                fontweight="bold", zorder=6)
-        # Label
-        ax.text(cx, cy, label, ha="center", va="center", fontsize=7.5,
-                linespacing=1.4)
+    # Horizontal arrows between adjacent top-row boxes
+    for i in range(len(top_stages) - 1):
+        x1 = top_stages[i][0] + top_stages[i][1]
+        x2 = top_stages[i + 1][0]
+        _arrow(ax, x1, box_y + box_h / 2, x2, box_y + box_h / 2)
 
-    # Arrows between boxes
-    for i in range(len(stages) - 1):
-        x_start = stages[i][0] + box_w / 2
-        x_end = stages[i + 1][0] - box_w / 2
-        arrow = FancyArrowPatch(
-            (x_start, cy), (x_end, cy),
-            arrowstyle="-|>",
-            mutation_scale=12,
-            linewidth=1.0,
-            color="black",
-        )
-        ax.add_patch(arrow)
+    # ── DOWN ARROW: Stage 4 bottom -> LP box top ──────────────────────────
+    stage4_cx = top_stages[3][0] + top_stages[3][1] / 2
+    lp_top = 3.0 + 1.4
+    _arrow(ax, stage4_cx, box_y, stage4_cx, lp_top)
 
-    # Carbon branch arrow from LP box
-    lp_cx = stages[4][0]
-    ax.annotate(
-        "Carbon\nConstraint",
-        xy=(lp_cx, cy - box_h / 2),
-        xytext=(lp_cx, cy - box_h / 2 - 0.7),
-        fontsize=7,
-        ha="center",
-        arrowprops=dict(arrowstyle="-|>", color="dimgrey", lw=0.8),
-        color="dimgrey",
+    # ── CENTRAL LP BOX (double border) ───────────────────────────────────
+    lp_text = (
+        "DRO-CVaR LINEAR PROGRAMMING MODEL  (solved via CBC)\n\n"
+        r"$\min_{Q,\tau,u_i,v_i,\eta_i}$  "
+        r"$(1-\lambda)\bar{c} + \lambda\!\left(\tau + "
+        r"\frac{1}{N(1-\alpha)}\sum_i \eta_i + \varepsilon L\right)$"
+        "\n"
+        r"s.t.  $u_i \geq Q-d_i$,   $v_i \geq d_i-Q$,   "
+        r"$\eta_i \geq c(Q,d_i)-\tau$,   "
+        r"$Q\cdot e_{\mathrm{factor}} \leq C_{\mathrm{cap}}$,   "
+        r"$u_i, v_i, \eta_i \geq 0$"
     )
+    _box(ax, 0.3, 3.0, 11.6, 1.4, lp_text, fontsize=8.5, double=True)
 
-    ax.set_title(
-        "Figure 1: DRO-CVaR Methodology Flowchart",
-        fontsize=10, fontweight="bold", pad=6,
-    )
+    # ── DOWN ARROW: LP box bottom -> output row ───────────────────────────
+    lp_cx = 0.3 + 11.6 / 2
+    _arrow(ax, lp_cx, 3.0, lp_cx, 0.7 + 1.4)
+
+    # ── BOTTOM ROW: 3 output boxes at y=0.7, h=1.4 ───────────────────────
+    out_boxes = [
+        (0.3, 3.6,
+         "OPTIMAL POLICY\n\n$Q^*$ (order quantity)\n$\\tau^*$ (VaR$_{0.95}$)\n"
+         "Expected cost\nCVaR$_{0.95}$"),
+        (4.2, 3.6,
+         "CARBON IMPACT\n\nEmissions (tCO$_2$/wk)\nTrading credit (£)\n"
+         "Cap-and-trade\nsensitivity"),
+        (8.1, 3.8,
+         "OUT-OF-SAMPLE VALIDATION\n\n10-week holdout test\n"
+         "Generalisation error\nTail-risk reduction"),
+    ]
+    for x, w, txt in out_boxes:
+        _box(ax, x, 0.7, w, 1.4, txt, fontsize=8)
 
     save_path = save_path or FIGURES_DIR / "fig1_methodology_flowchart.png"
     fig.tight_layout()
@@ -215,19 +247,25 @@ def plot_efficient_frontier(lambda_results, save_path=None):
     naive_cost = lambda_results[0].get("naive_cost", exp_costs[0])
     naive_cvar = lambda_results[0].get("naive_cvar", cvar_vals[0])
 
-    # Panel (a): Efficient frontier scatter
+    # Panel (a): Efficient frontier scatter — 5 distinct markers, axes in £000
     ax = axes[0]
-    ax.plot(exp_costs, cvar_vals, "k-", linewidth=0.8, zorder=1)
-    for i, (ec, cv, lam, mk) in enumerate(zip(exp_costs, cvar_vals, lambdas, markers)):
-        ax.plot(ec, cv, mk, color="black", markersize=7,
-                markerfacecolor="white" if i % 2 == 0 else "black",
-                markeredgecolor="black", markeredgewidth=0.8,
-                label=f"λ={lam:.2f}", zorder=2)
-    # Naive policy
-    ax.plot(naive_cost, naive_cvar, "kx", markersize=10, markeredgewidth=1.5,
-            label="Naive (mean)", zorder=3)
-    ax.set_xlabel("Expected Cost (£/week)")
-    ax.set_ylabel("CVaR₉₅ (£/week)")
+    ec = exp_costs
+    cv = cvar_vals
+    marker_shapes = ["o", "s", "D", "^", "v"]
+    ax.plot([e / 1000 for e in ec], [c / 1000 for c in cv],
+            "k-", linewidth=0.8, alpha=0.7, zorder=2)
+    for i, (lam, ec_val, cv_val) in enumerate(zip(lambdas, ec, cv)):
+        mk = marker_shapes[i % len(marker_shapes)]
+        ax.scatter(ec_val / 1000, cv_val / 1000, marker=mk,
+                   facecolors="white", edgecolors="black", s=80,
+                   linewidths=1.2, zorder=4, label=f"$\\lambda$={lam:.2f}")
+    # Naive benchmark
+    ax.scatter(naive_cost / 1000, naive_cvar / 1000, marker="x",
+               color="black", s=120, linewidths=2.5, zorder=5)
+    ax.annotate("Naïve", xy=(naive_cost / 1000, naive_cvar / 1000),
+                xytext=(6, -12), textcoords="offset points", fontsize=9)
+    ax.set_xlabel("Expected cost (£000/week)")
+    ax.set_ylabel("CVaR$_{0.95}$ (£000/week)")
     ax.set_title("(a) Risk–Cost Efficient Frontier", fontsize=9)
     ax.legend(fontsize=7, ncol=2)
     ax.grid(True, linewidth=0.4)

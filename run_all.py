@@ -10,7 +10,7 @@ from src.scenario_generator import generate_scenarios, wasserstein_radius
 from src.dro_cvar_lp import solve_dro_cvar, PARAMS
 from src.sensitivity_analysis import run_full_sensitivity
 from src.plotting import generate_all_figures
-from src.animation import make_animation
+from src.animation import generate_animation
 
 SEED = 42
 N_SCENARIOS = 500
@@ -62,7 +62,13 @@ def main():
 
     # ── 7. Generate animation ─────────────────────────────────────────────────
     print("\nRendering 140-frame animation (this may take ~60s)...")
-    anim_path = make_animation(scenarios=scenarios, train_w=train_w, epsilon=epsilon)
+    anim_path = generate_animation(
+        scenarios=scenarios,
+        train_w=train_w,
+        results={0.0: rn, 0.5: dro},
+        epsilon=epsilon,
+        params=PARAMS,
+    )
     print(f"  Saved: {anim_path}")
 
     print("\n✓ All outputs written to results/")
