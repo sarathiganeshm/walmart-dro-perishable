@@ -187,3 +187,25 @@ def solve_dro_cvar(
         "service_level": service_level,
         "status": status,
     }
+
+
+def get_available_solvers():
+    """
+    Probe which LP solvers are available on this machine.
+    Returns a list of solver names that can be passed as `solver=` to solve_dro_cvar.
+    CBC is always available via PuLP's bundled binary.
+    """
+    available = ["cbc"]
+    try:
+        s = pulp.GUROBI_CMD(msg=False)
+        if s.available():
+            available.append("gurobi")
+    except Exception:
+        pass
+    try:
+        s = pulp.CPLEX_CMD(msg=False)
+        if s.available():
+            available.append("cplex")
+    except Exception:
+        pass
+    return available
