@@ -1,0 +1,12 @@
+data/*.csv
+data/*.xlsx
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.egg-info/
+dist/
+build/
+.env
+*.ipynb_checkpoints/
+results/animation/*.gif
