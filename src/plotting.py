@@ -285,50 +285,68 @@ def plot_cost_distributions(scenarios, rn_result, dro_result, save_path=None):
     costs_rn = scenario_costs(rn_result["Q"], scenarios)
     costs_dro = scenario_costs(dro_result["Q"], scenarios)
 
-    # Panel (a): Overlaid histograms
+    # Compute CVaR (expected cost above 95th percentile)
+    def cvar95(c):
+        threshold = np.percentile(c, 95)
+        tail = c[c >= threshold]
+        return float(np.mean(tail)) if len(tail) > 0 else threshold
+
+    cvar_rn = cvar95(costs_rn)
+    cvar_dro = cvar95(costs_dro)
+    cvar_reduction_pct = (cvar_rn - cvar_dro) / cvar_rn * 100
+    q_rn = float(rn_result["Q"])
+    q_dro = float(dro_result["Q"])
+
+    # Panel (a): Overlaid histograms — density, x-axis in £000
     ax = axes[0]
     all_costs = np.concatenate([costs_rn, costs_dro])
     bins = np.linspace(np.percentile(all_costs, 1), np.percentile(all_costs, 99), 30)
+    bins_k = bins / 1000.0
 
-    ax.hist(costs_rn, bins=bins, color="white", edgecolor="black",
-            hatch="\\\\", linewidth=0.6, alpha=0.85, label="Risk-Neutral (RN)")
-    ax.hist(costs_dro, bins=bins, color="dimgrey", edgecolor="black",
-            linewidth=0.5, alpha=0.55, label="DRO-CVaR (λ=0.5)")
+    ax.hist(costs_rn / 1000, bins=bins_k, density=True, color="white", edgecolor="black",
+            hatch="\\\\", linewidth=0.6, alpha=0.85,
+            label=f"Risk-neutral (Q* = {q_rn:,.0f})")
+    ax.hist(costs_dro / 1000, bins=bins_k, density=True, color="dimgrey", edgecolor="black",
+            linewidth=0.5, alpha=0.55,
+            label=f"DRO-CVaR λ=0.5 (Q* = {q_dro:,.0f})")
 
-    # VaR lines
-    var_rn = float(np.percentile(costs_rn, 95))
-    var_dro = float(np.percentile(costs_dro, 95))
-    ax.axvline(var_rn, color="black", linestyle="--", linewidth=1.0, label=f"VaR₉₅ RN=£{var_rn:,.0f}")
-    ax.axvline(var_dro, color="black", linestyle=":", linewidth=1.0, label=f"VaR₉₅ DRO=£{var_dro:,.0f}")
+    # CVaR lines (true expected shortfall, not VaR)
+    ax.axvline(cvar_rn / 1000, color="black", linestyle="--", linewidth=1.0,
+               label=f"CVaR RN = £{cvar_rn/1000:.1f}k")
+    ax.axvline(cvar_dro / 1000, color="black", linestyle=":", linewidth=1.0,
+               label=f"CVaR DRO = £{cvar_dro/1000:.1f}k")
 
-    ax.set_xlabel("Scenario Cost (£)")
-    ax.set_ylabel("Frequency")
-    ax.set_title("(a) Cost Distribution: RN vs DRO-CVaR", fontsize=9)
+    ax.set_xlabel("Weekly cost (£000)")
+    ax.set_ylabel("Density")
+    ax.set_title(f"(a) Cost distribution — CVaR reduction: {cvar_reduction_pct:.1f}%", fontsize=9)
     ax.legend(fontsize=7)
     ax.grid(True, linewidth=0.4)
     ax.set_axisbelow(True)
 
-    # Panel (b): Percentile plot
+    # Panel (b): Percentile plot — P95 cutoff, costs in £000/week
     ax2 = axes[1]
     pcts = np.linspace(0, 100, len(scenarios))
-    ax2.plot(pcts, np.sort(costs_rn), "k-", linewidth=1.2, label="Risk-Neutral")
-    ax2.plot(pcts, np.sort(costs_dro), "k--", linewidth=1.2, label="DRO-CVaR (λ=0.5)")
+    sorted_rn_k = np.sort(costs_rn) / 1000
+    sorted_dro_k = np.sort(costs_dro) / 1000
 
-    # Shade tail region > P90
-    p90_pct = 90
-    tail_pcts = pcts[pcts >= p90_pct]
+    ax2.plot(pcts, sorted_rn_k, "k-", linewidth=1.2, label="Risk-neutral")
+    ax2.plot(pcts, sorted_dro_k, "k--", linewidth=1.2, label="DRO-CVaR λ=0.5")
+
+    # Shade tail-risk reduction between curves above P95
+    tail_mask = pcts >= 95
     ax2.fill_between(
-        tail_pcts,
-        np.sort(costs_rn)[pcts >= p90_pct],
-        np.sort(costs_dro)[pcts >= p90_pct],
+        pcts[tail_mask],
+        sorted_rn_k[tail_mask],
+        sorted_dro_k[tail_mask],
         color="lightgrey",
         alpha=0.7,
-        label="Tail region (>P90)",
+        label="Tail-risk reduction",
     )
-    ax2.axvline(90, color="dimgrey", linestyle="-.", linewidth=0.8)
+    ax2.axvline(95, color="black", linestyle=":", linewidth=0.8)
+    ax2.text(95.5, sorted_rn_k[tail_mask][0] * 0.99, "$P_{95}$", fontsize=7, va="top")
     ax2.set_xlabel("Percentile")
-    ax2.set_ylabel("Scenario Cost (£)")
-    ax2.set_title("(b) Sorted Scenario Costs — Percentile View", fontsize=9)
+    ax2.set_ylabel("Cost (£000/week)")
+    ax2.set_title("(b) Sorted scenario costs — tail-risk visualisation", fontsize=9)
     ax2.legend(fontsize=7)
     ax2.grid(True, linewidth=0.4)
     ax2.set_axisbelow(True)

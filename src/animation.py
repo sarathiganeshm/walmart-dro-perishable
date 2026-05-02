@@ -151,7 +151,8 @@ def make_animation(scenarios=None, train_w=None, epsilon=None, save_path=None):
             wh = Circle((wx, path_y - 0.12), 0.06,
                         edgecolor="black", facecolor="black", linewidth=0.5)
             ax.add_patch(wh)
-        ax.text(path_x, path_y + 0.04, "🚛", ha="center", va="center", fontsize=8)
+        ax.text(path_x, path_y, "DC→", ha="center", va="center", fontsize=5,
+                color="dimgrey")
 
         ax.text(5.0, 3.7, "FOODS_3 | CA_1 | d_1577–d_1941",
                 ha="center", va="center", fontsize=7, color="dimgrey",

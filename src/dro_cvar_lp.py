@@ -34,7 +34,6 @@ PARAMS = {
     "c_hold": 0.80,
     "c_short": 8.00,
     "c_waste": 1.50,
-    "c_carbon": 15.0,
     "e_per_unit": 0.003,
     "e_per_km": 0.0008,
     "avg_km": 50.0,
