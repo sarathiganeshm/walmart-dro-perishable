@@ -137,6 +137,29 @@ def carbon_cap_sweep(train_w, holdout_w, scenarios, epsilon, lam=0.5, **params):
     return results
 
 
+def run_full_sensitivity(train_w, holdout_w, scenarios, epsilon, **params):
+    """
+    Orchestrate both sweeps and save a merged summary to results/tables/summary.csv.
+    Returns (lambda_results, cap_results).
+    """
+    lam_results = lambda_sweep(train_w, holdout_w, scenarios, epsilon, **params)
+    cap_results = carbon_cap_sweep(train_w, holdout_w, scenarios, epsilon, **params)
+
+    # Carbon credit summary appended to cap sweep
+    from src.carbon_model import compute_trading_credit
+    for row in cap_results:
+        if row.get("Q"):
+            row["credit_gbp"] = compute_trading_credit(
+                row["Q"], row["cap"],
+                e_per_unit=params.get("e_per_unit", 0.003),
+                e_per_km=params.get("e_per_km", 0.0008),
+                avg_km=params.get("avg_km", 50.0),
+            )
+
+    _save_csv(cap_results, TABLES_DIR / "carbon_cap_sweep_with_credits.csv")
+    return lam_results, cap_results
+
+
 def _save_csv(records, path):
     if not records:
         return
